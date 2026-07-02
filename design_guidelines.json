@@ -1,0 +1,130 @@
+{
+  "theme": "light",
+  "archetype": "Archetype 1 (Organic & Earthy) - Modified for Data-Density",
+  "design_philosophy": "Control Room Grid layout. Maximum density with absolute clarity. Semantic colors are strictly used for status communication (Ageing, SLA). Typography is high-contrast, professional, and hierarchical to ensure rapid scanning.",
+  "typography": {
+    "fonts": {
+      "heading": "Outfit, sans-serif",
+      "body": "IBM Plex Sans, sans-serif",
+      "mono": "JetBrains Mono, monospace"
+    },
+    "hierarchy": {
+      "h1": "text-3xl sm:text-4xl font-semibold tracking-tight text-slate-900",
+      "h2": "text-xl sm:text-2xl font-semibold tracking-tight text-slate-900",
+      "h3": "text-lg font-medium text-slate-800",
+      "body": "text-sm text-slate-600 leading-relaxed",
+      "data_label": "text-xs font-semibold uppercase tracking-[0.1em] text-slate-500",
+      "table_header": "text-xs font-semibold uppercase tracking-wider text-slate-500 bg-slate-50",
+      "table_data": "text-sm font-medium text-slate-800",
+      "kpi_value": "text-3xl font-bold tracking-tight text-slate-900 font-['Outfit']"
+    }
+  },
+  "colors": {
+    "background": {
+      "app": "bg-slate-50",
+      "card": "bg-white",
+      "glass_header": "bg-white/80 backdrop-blur-xl border-b border-slate-200"
+    },
+    "primary": {
+      "default": "bg-emerald-800",
+      "hover": "bg-emerald-900",
+      "text": "text-white"
+    },
+    "text": {
+      "primary": "text-slate-900",
+      "secondary": "text-slate-600",
+      "muted": "text-slate-400"
+    },
+    "semantic": {
+      "success": "text-emerald-700 bg-emerald-50 border-emerald-200",
+      "warning_low": "text-amber-700 bg-amber-50 border-amber-200",
+      "warning_high": "text-orange-700 bg-orange-50 border-orange-200",
+      "danger": "text-rose-700 bg-rose-50 border-rose-200",
+      "info": "text-indigo-700 bg-indigo-50 border-indigo-200"
+    },
+    "heat_map_buckets": {
+      "bucket_0_3": "#10b981",
+      "bucket_4_7": "#fbbf24",
+      "bucket_8_15": "#f97316",
+      "bucket_15_plus": "#e11d48"
+    }
+  },
+  "layout_and_spacing": {
+    "grid_system": "Control Room Grid",
+    "spacing": {
+      "page_padding": "p-6",
+      "section_gap": "gap-6",
+      "widget_padding": "p-5"
+    },
+    "surfaces": {
+      "dashboard_card": "bg-white rounded-xl border border-slate-200 shadow-[0_1px_3px_rgba(0,0,0,0.05)]",
+      "modal_glass": "bg-white/90 backdrop-blur-2xl border border-white/50 shadow-2xl",
+      "table_wrapper": "bg-white border border-slate-200 rounded-lg overflow-hidden shadow-sm"
+    }
+  },
+  "components": {
+    "buttons": {
+      "primary": "inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors bg-emerald-800 text-white hover:bg-emerald-900 h-9 px-4 shadow-sm",
+      "secondary": "inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 hover:text-slate-900 h-9 px-4",
+      "danger": "inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors bg-rose-50 text-rose-700 hover:bg-rose-100 border border-rose-200 h-9 px-4"
+    },
+    "tables": {
+      "header": "bg-slate-50 border-b border-slate-200 sticky top-0 z-10",
+      "row": "border-b border-slate-100 hover:bg-slate-50/50 transition-colors",
+      "cell": "px-4 py-3 whitespace-nowrap",
+      "alignment": "Numbers right-aligned, Text left-aligned, Actions centered."
+    },
+    "badges": {
+      "base": "inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold border"
+    },
+    "kpi_cards": {
+      "structure": "Flex column, gap-2. Icon top right (subdued color). Title top left. Large value bottom left. Trend indicator bottom right."
+    },
+    "workflow_funnel": {
+      "structure": "Use Recharts (FunnelChart) or a custom horizontal CSS flex-based step process with varying heights/widths to represent volume dropping per stage."
+    },
+    "ageing_heat_map": {
+      "structure": "A grid of 4 cards/blocks displaying the counts for 0-3, 4-7, 8-15, and 15+ days. Each block should have a thick top border or a background tint corresponding to the bucket's semantic color from `colors.heat_map_buckets`."
+    }
+  },
+  "interactions_and_motion": {
+    "hover": "Subtle -translate-y-[1px] on cards with slight shadow increase. Row highlight on tables.",
+    "transitions": "all 0.2s ease",
+    "chart_animations": "Enabled for Recharts, default easing."
+  },
+  "icons_library": "@phosphor-icons/react",
+  "media": {
+    "image_urls": [
+      {
+        "url": "https://images.unsplash.com/photo-1600531529272-023c4b821f14?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NTY2OTV8MHwxfHNlYXJjaHwxfHxtb2Rlcm4lMjBnbGFzcyUyMG9mZmljZSUyMGJ1aWxkaW5nJTIwYXJjaGl0ZWN0dXJlfGVufDB8fHx8MTc4MjM3NTIzN3ww&ixlib=rb-4.1.0&q=85",
+        "description": "Modern glass office building for Login Page Background",
+        "category": "login_background"
+      },
+      {
+        "url": "https://images.pexels.com/photos/20157010/pexels-photo-20157010.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940",
+        "description": "Professional User Avatar Male",
+        "category": "avatar_male"
+      },
+      {
+        "url": "https://images.pexels.com/photos/30426363/pexels-photo-30426363.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940",
+        "description": "Professional User Avatar Casual",
+        "category": "avatar_casual"
+      }
+    ]
+  },
+  "testing": {
+    "rules": "All interactive elements (buttons, inputs, tabs, table rows) MUST have a data-testid attribute. Use kebab-case format (e.g., 'submit-login-button', 'itr-row-0')."
+  },
+  "instructions_to_main_agent": [
+    "Ensure all components use .jsx or .js extensions only. DO NOT generate .tsx or .ts files.",
+    "Initialize React app with Tailwind CSS and Shadcn/UI.",
+    "Install dependencies: @phosphor-icons/react, recharts, framer-motion, lucide-react.",
+    "Implement the 'Control Room' grid for the dashboard (dense, gap-4 to gap-6, maximizing screen real estate).",
+    "For the Login screen, use 'login_background' with a heavy dark overlay (bg-slate-900/60) to contrast with the bright inner dashboard.",
+    "The Return Master table is the core operational module: ensure it supports sticky headers, dense row heights, and horizontal scrolling if needed.",
+    "Implement the Ageing Heat Map using the specific hex codes provided in `heat_map_buckets` for instant visual impact.",
+    "The Escalation system should be a prominent panel (e.g., right sidebar or top-level alerts) using the warning/danger semantic styles.",
+    "All forms (Client Master, Workflow Stage Master) should use Shadcn form primitives customized with the specific typography and button styles.",
+    "Ensure the Workflow Funnel is visually engaging and clickable, filtering the Return Master list based on the clicked stage."
+  ]
+}

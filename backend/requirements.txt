@@ -1,0 +1,45 @@
+# Trimmed from Emergent's auto-generated requirements.txt.
+# Removed: emergentintegrations (private Emergent package, not on PyPI),
+# litellm (hosted on Emergent's internal asset server, unreachable from a
+# plain EC2 box), and other unused scaffold deps (openai, google-genai,
+# google-generativeai, stripe, boto3, s3transfer, pandas, numpy, pillow,
+# tiktoken, tokenizers, huggingface_hub, black/flake8/mypy/isort dev tools,
+# pytest, watchfiles, etc.) that nothing in backend/*.py actually imports.
+#
+# Verified via: grep -rhoE "^(import|from) [a-zA-Z0-9_\.]+" *.py
+# against this exact repo on 2026-06-28.
+
+fastapi==0.110.1
+starlette==0.37.2
+uvicorn==0.25.0
+pydantic==2.13.4
+pydantic_core==2.46.4
+annotated-types==0.7.0
+typing-inspection==0.4.2
+typing_extensions==4.15.0
+anyio==4.14.0
+sniffio==1.3.1
+h11==0.16.0
+
+# Auth
+bcrypt==4.1.3
+PyJWT==2.13.0
+python-jose==3.5.0
+passlib==1.7.4
+python-multipart==0.0.32
+email-validator==2.3.0
+
+# Database
+motor==3.7.1
+pymongo==4.17.0
+dnspython==2.8.0
+
+# Scheduler (escalation job)
+APScheduler==3.11.2
+
+# Config
+python-dotenv==1.2.2
+
+# Export (Excel / PDF)
+openpyxl==3.1.5
+reportlab==5.0.0
