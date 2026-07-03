@@ -13,6 +13,8 @@ dist/
 .env
 backend/.env
 frontend/.env
+backend/.env.example
+frontend/.env.example
 
 # IDE / OS
 .vscode/
@@ -32,10 +34,20 @@ coverage/
 # Local data
 *.sqlite
 *.xlsx
+.~lock.*#
 mongo-data/
+.local/
+backend/memory/
 .env.*
 *.env
 credentials.json
 *.pem
 *.key
 .credentials
+
+# Local preview tooling/artifacts - NEVER commit
+compose.preview.yml
+scripts/preview.sh
+scripts/mongo-local.sh
+/package.json
+/package-lock.json

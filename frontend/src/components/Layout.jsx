@@ -31,7 +31,7 @@ export default function Layout({ children }) {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 flex">
+    <div className="min-h-screen bg-slate-50">
       {/* Sidebar */}
       <aside className="w-64 bg-white border-r border-slate-200 flex flex-col fixed inset-y-0 left-0 z-30">
         <div className="h-16 flex items-center gap-3 px-5 border-b border-slate-200">
@@ -84,7 +84,7 @@ export default function Layout({ children }) {
         </div>
       </aside>
 
-      <main className="flex-1 ml-64 min-h-screen">
+      <main className="ml-64 min-h-screen w-[calc(100%-16rem)] min-w-0 overflow-x-hidden">
         <header className="sticky top-0 z-20 h-14 bg-white/80 backdrop-blur-xl border-b border-slate-200 flex items-center px-6">
           <div className="text-sm text-slate-500">
             <span className="text-emerald-700 font-semibold">Live</span>

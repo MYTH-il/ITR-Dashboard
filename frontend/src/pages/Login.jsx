@@ -11,8 +11,8 @@ const BG_URL = "https://images.unsplash.com/photo-1600531529272-023c4b821f14?cro
 
 export default function Login() {
   const { login, user, loading } = useAuth();
-  const [email, setEmail] = useState("admin@taxops.com");
-  const [password, setPassword] = useState("Admin@123");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const navigate = useNavigate();
@@ -108,12 +108,6 @@ export default function Login() {
               {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : "Sign in"}
             </Button>
           </form>
-
-          <div className="mt-8 p-3 bg-white border border-slate-200 rounded-md">
-            <div className="text-[10px] uppercase tracking-[0.18em] text-slate-500 mb-1">Demo Credentials</div>
-            <div className="text-xs text-slate-700">Admin: <span className="font-mono">admin@taxops.com / Admin@123</span></div>
-            <div className="text-xs text-slate-700">User: <span className="font-mono">priya.sharma@taxops.com / User@123</span></div>
-          </div>
         </div>
       </div>
     </div>

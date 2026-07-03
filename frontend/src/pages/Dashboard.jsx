@@ -8,13 +8,13 @@ import {
 } from "lucide-react";
 
 const KPI_DEFS = [
-  { key: "total_returns", label: "Total Returns", icon: Layers, color: "text-slate-600", bg: "bg-slate-50" },
-  { key: "pending_verification", label: "Pending Verification", icon: FileCheck2, color: "text-sky-700", bg: "bg-sky-50" },
-  { key: "queries_pending", label: "Queries Pending", icon: MessageSquareWarning, color: "text-indigo-700", bg: "bg-indigo-50" },
-  { key: "ready_to_file", label: "Ready to File", icon: Rocket, color: "text-orange-700", bg: "bg-orange-50" },
-  { key: "everification_pending", label: "E-verification Pending", icon: ShieldCheck, color: "text-amber-700", bg: "bg-amber-50" },
-  { key: "completed_returns", label: "Completed", icon: CheckCircle2, color: "text-emerald-700", bg: "bg-emerald-50" },
-  { key: "overdue_returns", label: "Overdue", icon: AlertOctagon, color: "text-rose-700", bg: "bg-rose-50" },
+  { key: "total_returns", label: "Total Returns", icon: Layers, color: "text-slate-600", bg: "bg-slate-50", to: "/returns" },
+  { key: "pending_verification", label: "Pending Verification", icon: FileCheck2, color: "text-sky-700", bg: "bg-sky-50", to: "/returns?dashboard_filter=pending_verification" },
+  { key: "queries_pending", label: "Queries Pending", icon: MessageSquareWarning, color: "text-indigo-700", bg: "bg-indigo-50", to: "/queries?pending=true" },
+  { key: "ready_to_file", label: "Ready to File", icon: Rocket, color: "text-orange-700", bg: "bg-orange-50", to: "/returns?dashboard_filter=ready_to_file" },
+  { key: "everification_pending", label: "E-verification Pending", icon: ShieldCheck, color: "text-amber-700", bg: "bg-amber-50", to: "/returns?dashboard_filter=everification_pending" },
+  { key: "completed_returns", label: "Completed", icon: CheckCircle2, color: "text-emerald-700", bg: "bg-emerald-50", to: "/returns?dashboard_filter=completed_returns" },
+  { key: "overdue_returns", label: "Overdue", icon: AlertOctagon, color: "text-rose-700", bg: "bg-rose-50", to: "/returns?dashboard_filter=overdue_returns" },
 ];
 
 const HEAT_BUCKETS = [
@@ -83,7 +83,7 @@ export default function Dashboard() {
         {KPI_DEFS.map((d) => {
           const Icon = d.icon;
           return (
-            <div key={d.key} data-testid={`kpi-${d.key}`} className="dashboard-card p-5">
+            <button key={d.key} data-testid={`kpi-${d.key}`} onClick={() => navigate(d.to)} className="dashboard-card p-5 text-left transition-colors hover:border-slate-300 hover:bg-slate-50">
               <div className="flex items-start justify-between">
                 <div className="text-data-label">{d.label}</div>
                 <div className={`w-8 h-8 rounded-lg ${d.bg} flex items-center justify-center`}>
@@ -91,7 +91,7 @@ export default function Dashboard() {
                 </div>
               </div>
               <div className="kpi-value tabular-num mt-3">{kpis?.[d.key] ?? 0}</div>
-            </div>
+            </button>
           );
         })}
       </div>
@@ -139,10 +139,11 @@ export default function Dashboard() {
           <p className="text-xs text-slate-500 mb-4">Returns by days in current stage</p>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             {HEAT_BUCKETS.map((b) => (
-              <div
+              <button
                 key={b.key}
                 data-testid={`heatmap-bucket-${b.key}`}
-                className="rounded-lg p-4 border"
+                onClick={() => navigate(`/returns?stage_age_bucket=${encodeURIComponent(b.key)}`)}
+                className="rounded-lg p-4 border text-left transition-colors hover:bg-white"
                 style={{ borderColor: b.color + "55", backgroundColor: b.color + "12", borderTop: `4px solid ${b.color}` }}
               >
                 <div className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: b.color }}>{b.desc}</div>
@@ -150,7 +151,7 @@ export default function Dashboard() {
                 <div className="text-3xl font-bold tabular-num mt-2 text-slate-900" style={{ fontFamily: "Outfit" }}>
                   {heat.buckets[b.key] || 0}
                 </div>
-              </div>
+              </button>
             ))}
           </div>
         </div>
@@ -166,7 +167,12 @@ export default function Dashboard() {
               const total = Object.values(queries).reduce((a, b) => a + b, 0) || 1;
               const pct = Math.round((count / total) * 100);
               return (
-                <div key={status} data-testid={`query-status-${status.replace(/\s+/g, "-").toLowerCase()}`}>
+                <button
+                  key={status}
+                  data-testid={`query-status-${status.replace(/\s+/g, "-").toLowerCase()}`}
+                  onClick={() => navigate(`/queries?status=${encodeURIComponent(status)}`)}
+                  className="block w-full rounded-md p-2 text-left transition-colors hover:bg-slate-50"
+                >
                   <div className="flex items-center justify-between text-sm">
                     <span className="font-medium text-slate-700">{status}</span>
                     <span className="tabular-num text-slate-600">{count} <span className="text-slate-400 text-xs">({pct}%)</span></span>
@@ -174,7 +180,7 @@ export default function Dashboard() {
                   <div className="mt-1 h-2 rounded-full bg-slate-100 overflow-hidden">
                     <div className="h-full rounded-full" style={{ width: `${pct}%`, backgroundColor: colors[idx] }} />
                   </div>
-                </div>
+                </button>
               );
             })}
           </div>
@@ -186,9 +192,9 @@ export default function Dashboard() {
         <h2 className="text-xl font-semibold tracking-tight text-slate-900 mb-1" style={{ fontFamily: "Outfit" }}>SLA Monitoring</h2>
         <p className="text-xs text-slate-500 mb-4">Stage-wise performance vs SLA</p>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
-          <StatTile label="SLA Breaches" count={sla.sla_breaches.length} color="#e11d48" testid="sla-breaches" />
-          <StatTile label="Upcoming Breaches" count={sla.upcoming_sla_breaches.length} color="#f97316" testid="sla-upcoming" />
-          <StatTile label="Escalations Active" count={(sla.stage_delays || []).reduce((a, s) => a + (s.breaches || 0), 0)} color="#7c3aed" testid="sla-escalations" />
+          <StatTile label="SLA Breaches" count={sla.sla_breaches.length} color="#e11d48" testid="sla-breaches" onClick={() => navigate("/returns?dashboard_filter=sla_breaches")} />
+          <StatTile label="Upcoming Breaches" count={sla.upcoming_sla_breaches.length} color="#f97316" testid="sla-upcoming" onClick={() => navigate("/returns?dashboard_filter=upcoming_sla")} />
+          <StatTile label="Escalations Active" count={(sla.escalation_breaches || []).length} color="#7c3aed" testid="sla-escalations" onClick={() => navigate("/escalations")} />
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
@@ -203,7 +209,7 @@ export default function Dashboard() {
             </thead>
             <tbody>
               {sla.stage_delays.map((s) => (
-                <tr key={s.stage_id} className="border-b border-slate-100">
+                <tr key={s.stage_id} className="border-b border-slate-100 hover:bg-slate-50/50 cursor-pointer" onClick={() => navigate(`/returns?stage_id=${s.stage_id}`)}>
                   <td className="px-4 py-2">
                     <span className="inline-flex items-center text-xs font-semibold border rounded-full px-2.5 py-0.5" style={stageBadgeStyle(s.colour)}>{s.stage_name}</span>
                   </td>
@@ -237,7 +243,7 @@ export default function Dashboard() {
             </thead>
             <tbody>
               {team.map((u) => (
-                <tr key={u.user_id} className="border-b border-slate-100 hover:bg-slate-50/50">
+                <tr key={u.user_id} className="border-b border-slate-100 hover:bg-slate-50/50 cursor-pointer" onClick={() => navigate(`/returns?person_id=${u.user_id}`)}>
                   <td className="px-4 py-2">
                     <div className="font-medium text-slate-800">{u.name}</div>
                     <div className="text-[11px] text-slate-500">{u.email} · {u.role}</div>
@@ -259,11 +265,11 @@ export default function Dashboard() {
   );
 }
 
-function StatTile({ label, count, color, testid }) {
+function StatTile({ label, count, color, testid, onClick }) {
   return (
-    <div data-testid={testid} className="rounded-lg p-4 border" style={{ borderColor: color + "55", backgroundColor: color + "0F" }}>
+    <button type="button" data-testid={testid} onClick={onClick} className="rounded-lg p-4 border text-left transition-colors hover:bg-white" style={{ borderColor: color + "55", backgroundColor: color + "0F" }}>
       <div className="text-[10px] font-semibold uppercase tracking-wider" style={{ color }}>{label}</div>
       <div className="text-2xl font-bold tabular-num mt-1 text-slate-900" style={{ fontFamily: "Outfit" }}>{count}</div>
-    </div>
+    </button>
   );
 }

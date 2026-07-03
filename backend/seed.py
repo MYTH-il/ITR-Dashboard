@@ -1,9 +1,7 @@
-"""Seed initial data: admin user, workflow stages, dropdown options, demo data."""
+"""Seed required baseline data: admin user, workflow stages, and dropdown options."""
 import os
-from datetime import datetime, timezone, timedelta
 from auth import hash_password, verify_password
 from models import gen_id, utcnow
-import random
 
 
 WORKFLOW_STAGES = [
@@ -29,26 +27,6 @@ QUERY_STATUSES = ["Open", "Awaiting Client", "Follow-up Required", "Closed"]
 FY_VALUES = ["2024-25", "2023-24", "2022-23", "2021-22", "2020-21"]
 ITR_FORMS = ["ITR-1", "ITR-2", "ITR-3", "ITR-4", "ITR-5", "ITR-6", "ITR-7"]
 
-DEMO_USERS = [
-    ("priya.sharma@taxops.com", "Priya Sharma", "User@123"),
-    ("rahul.mehta@taxops.com", "Rahul Mehta", "User@123"),
-    ("anita.desai@taxops.com", "Anita Desai", "User@123"),
-]
-
-DEMO_CLIENTS = [
-    ("F-0001", "Sharma Group", "Vikram Sharma", "Individual"),
-    ("F-0002", "Sharma Group", "Sharma Trading Pvt Ltd", "Company"),
-    ("F-0003", "Mehta Holdings", "Rajesh Mehta", "Individual"),
-    ("F-0004", "Mehta Holdings", "Mehta Builders LLP", "LLP"),
-    ("F-0005", "Independent", "Sneha Kapoor", "Individual"),
-    ("F-0006", "Independent", "Arjun Reddy", "Individual"),
-    ("F-0007", "Patel Enterprises", "Patel Textiles Pvt Ltd", "Company"),
-    ("F-0008", "Patel Enterprises", "Kirti Patel", "Individual"),
-    ("F-0009", "Independent", "Meera Joshi HUF", "HUF"),
-    ("F-0010", "Singh Group", "Harpreet Singh", "Individual"),
-]
-
-
 async def seed_users(db):
     admin_email = os.environ.get("ADMIN_EMAIL", "admin@taxops.com")
     admin_password = os.environ.get("ADMIN_PASSWORD", "Admin@123")
@@ -66,18 +44,6 @@ async def seed_users(db):
         })
     elif not verify_password(admin_password, existing["password_hash"]):
         await db.users.update_one({"email": admin_email}, {"$set": {"password_hash": hash_password(admin_password)}})
-
-    for email, name, pwd in DEMO_USERS:
-        if not await db.users.find_one({"email": email}):
-            await db.users.insert_one({
-                "id": gen_id(),
-                "email": email,
-                "name": name,
-                "password_hash": hash_password(pwd),
-                "role": "user",
-                "active": True,
-                "created_at": utcnow().isoformat(),
-            })
 
 
 async def seed_stages(db):
@@ -139,95 +105,7 @@ async def seed_options(db):
             })
 
 
-async def seed_clients(db):
-    if await db.clients.count_documents({}) == 0:
-        for file_no, group, name, category in DEMO_CLIENTS:
-            await db.clients.insert_one({
-                "id": gen_id(),
-                "file_no": file_no,
-                "group": group,
-                "client_name": name,
-                "category": category,
-                "created_at": utcnow().isoformat(),
-                "updated_at": utcnow().isoformat(),
-            })
-
-
-async def seed_returns(db):
-    if await db.returns.count_documents({}) > 0:
-        return
-    stages = await db.workflow_stages.find({}).sort("sequence", 1).to_list(100)
-    clients = await db.clients.find({}).to_list(100)
-    users = await db.users.find({"role": "user", "active": True}).to_list(100)
-    if not stages or not clients or not users:
-        return
-
-    random.seed(42)
-    return_types = ["Original", "Revised", "Updated"]
-    itr_forms = ["ITR-1", "ITR-2", "ITR-3", "ITR-4", "ITR-5", "ITR-6"]
-    now = datetime.now(timezone.utc)
-
-    for idx, client in enumerate(clients):
-        # 1-2 returns per client
-        for j in range(random.choice([1, 1, 2])):
-            stage = random.choice(stages)
-            days_ago = random.randint(1, 40)
-            inward_date = (now - timedelta(days=days_ago)).date().isoformat()
-            stage_entered_at = (now - timedelta(days=random.randint(0, days_ago))).isoformat()
-            due_date = (now + timedelta(days=random.randint(-5, 30))).date().isoformat()
-            await db.returns.insert_one({
-                "id": gen_id(),
-                "return_inward_no": f"RIN-2025-{(idx*2+j+1):04d}",
-                "return_inward_date": inward_date,
-                "task_id": f"TASK-{(idx*2+j+1):04d}",
-                "fy": "2024-25",
-                "file_no": client["file_no"],
-                "group": client["group"],
-                "client_name": client["client_name"],
-                "return_type": random.choice(return_types),
-                "itr_form": random.choice(itr_forms),
-                "due_date": due_date,
-                "current_stage_id": stage["id"],
-                "stage_entered_at": stage_entered_at,
-                "person_assigned_id": random.choice(users)["id"],
-                "remarks": "",
-                "created_at": (now - timedelta(days=days_ago)).isoformat(),
-                "updated_at": stage_entered_at,
-            })
-
-
-async def write_test_credentials():
-    # Original path was /app/memory -- a path specific to Emergent's own
-    # container layout, not writable outside it. Using a path relative to
-    # this file's own directory instead, so it works regardless of where
-    # the repo is cloned or who owns it.
-    memory_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "memory")
-    os.makedirs(memory_dir, exist_ok=True)
-    content = f"""# Test Credentials
-
-## Admin
-- Email: {os.environ.get('ADMIN_EMAIL', 'admin@taxops.com')}
-- Password: {os.environ.get('ADMIN_PASSWORD', 'Admin@123')}
-- Role: admin
-
-## Demo Users (role: user, password: User@123)
-- priya.sharma@taxops.com
-- rahul.mehta@taxops.com
-- anita.desai@taxops.com
-
-## Auth Endpoints
-- POST /api/auth/login
-- GET  /api/auth/me
-- POST /api/auth/logout
-"""
-    with open(os.path.join(memory_dir, "test_credentials.md"), "w") as f:
-        f.write(content)
-
-
 async def run_all_seeds(db):
     await seed_users(db)
     await seed_stages(db)
     await seed_options(db)
-    await seed_clients(db)
-    await seed_returns(db)
-    await write_test_credentials()

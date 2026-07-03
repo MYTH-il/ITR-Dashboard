@@ -1,16 +1,5 @@
 # Test Credentials
 
-## Admin
-- Email: admin@taxops.com
-- Password: Admin@123
-- Role: admin
+Admin credentials are controlled by `ADMIN_EMAIL` and `ADMIN_PASSWORD`.
 
-## Demo Users (role: user, password: User@123)
-- priya.sharma@taxops.com
-- rahul.mehta@taxops.com
-- anita.desai@taxops.com
-
-## Auth Endpoints
-- POST /api/auth/login
-- GET  /api/auth/me
-- POST /api/auth/logout
+Demo users are not seeded. Tests that need non-admin access create their own temporary user.

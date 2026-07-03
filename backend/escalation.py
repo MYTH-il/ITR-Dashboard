@@ -29,6 +29,14 @@ def days_since(created_at: str) -> int:
     return days_in_stage(created_at)
 
 
+def return_stage_age_days(ret: dict) -> int:
+    return days_in_stage(ret.get("stage_entered_at") or ret.get("return_inward_date") or ret.get("created_at"))
+
+
+def return_total_age_days(ret: dict) -> int:
+    return days_since(ret.get("return_inward_date") or ret.get("created_at"))
+
+
 async def compute_breaches(db):
     """Compute current SLA / escalation breaches across all non-completed returns."""
     stages = await db.workflow_stages.find({}).to_list(100)
@@ -43,7 +51,7 @@ async def compute_breaches(db):
             continue
         if (stage.get("stage_name") or "").lower() == "completed":
             continue
-        d = days_in_stage(r.get("stage_entered_at") or r.get("created_at"))
+        d = return_stage_age_days(r)
         sla = int(stage.get("sla_days") or 0)
         esc = int(stage.get("escalation_days") or 0)
         item = {

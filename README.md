@@ -48,11 +48,78 @@ That's it — the app will be running at `https://your-subdomain.duckdns.org`.
 
 ## Cost
 
-**$0/month for 12 months** (AWS EC2 free tier), then ~$7-8/month. MongoDB Atlas and Let's Encrypt are free forever.
+This deployment is designed to stay lightweight enough for a small EC2 instance
+and MongoDB Atlas M0, but it should not be treated as guaranteed `$0/month`.
+
+- AWS free-tier credits and eligible instance offers depend on the AWS account,
+  region, current AWS terms, and usage.
+- AWS charges separately for public IPv4 addresses, including Elastic IPs and
+  public IPv4 addresses attached to running EC2 instances.
+- MongoDB Atlas M0 and Let's Encrypt can be used without a paid plan within
+  their published limits.
+
+Check AWS Billing/Cost Explorer after deployment and set a billing alert before
+using the app in production.
 
 ## Development
 
 ### Local setup
+
+This project is developed locally on CachyOS/Arch-based Linux and deployed to
+Debian/Ubuntu servers. Keep OS-specific setup in development tooling only; the
+production deploy script should remain Debian/Ubuntu compatible.
+
+### Local preview
+
+The preview runner starts the FastAPI backend and React frontend together:
+
+```bash
+chmod +x scripts/preview.sh
+./scripts/preview.sh
+```
+
+Preview URLs:
+
+- Frontend: `http://localhost:3000`
+- Backend API: `http://localhost:8001/api`
+- Default admin login: `admin@taxops.com` / `Admin@123`
+
+The script creates `backend/.env` and `frontend/.env` if they do not already
+exist, creates `backend/venv`, installs backend requirements, installs frontend
+packages with Yarn, and runs both dev servers.
+
+MongoDB is required before starting the preview. If Docker or Podman Compose is
+available, use:
+
+```bash
+docker compose -f compose.preview.yml up -d
+# or
+podman compose -f compose.preview.yml up -d
+```
+
+On this CachyOS development machine, MongoDB can also run from the local
+repo-local install:
+
+```bash
+scripts/mongo-local.sh start
+scripts/mongo-local.sh status
+```
+
+On CachyOS/Arch, install the main local tools with:
+
+```bash
+sudo pacman -S python nodejs yarn
+```
+
+On Debian/Ubuntu, install equivalent local tools with:
+
+```bash
+sudo apt-get update
+sudo apt-get install -y python3 python3-venv python3-pip nodejs
+sudo npm install -g yarn
+```
+
+Manual setup is still available:
 
 ```bash
 cd frontend

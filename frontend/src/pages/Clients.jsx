@@ -37,7 +37,7 @@ export default function Clients() {
     fd.append("file", file);
     try {
       const r = await api.post("/clients/import", fd);
-      toast.success(`Imported: ${r.data.inserted} new, ${r.data.updated} updated`);
+      toast.success(`Imported: ${r.data.inserted} new, ${r.data.updated} updated, ${r.data.skipped || 0} skipped`);
       e.target.value = "";
       load();
     } catch (err) {

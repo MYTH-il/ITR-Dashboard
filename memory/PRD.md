@@ -39,9 +39,9 @@ Build a cloud-based, real-time Income Tax Return Operations Management System (V
 - JWT + bcrypt custom auth (no external integration).
 - Email escalation **mocked**: writes records to `escalation_log` with `email_status="pending"`. To activate real emails, add `RESEND_API_KEY` to `backend/.env` (not yet implemented in code).
 
-## Test Credentials (also at /app/memory/test_credentials.md)
-- Admin: `admin@taxops.com` / `Admin@123`
-- Users (role=user, pwd `User@123`): `priya.sharma@taxops.com`, `rahul.mehta@taxops.com`, `anita.desai@taxops.com`
+## Test Credentials
+- Admin defaults are configured through `ADMIN_EMAIL` and `ADMIN_PASSWORD`.
+- Demo user accounts are not seeded. Tests that need non-admin access create their own temporary user.
 
 ## Testing Status
 - Backend pytest: 28/28 pass (auth, masters, returns, queries, dashboard, escalations, exports, imports, role enforcement, reorder, dup key handling).

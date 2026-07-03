@@ -2,6 +2,8 @@
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Query
 from fastapi.responses import Response
 from typing import Optional, List
+import io
+import re
 from pymongo.errors import DuplicateKeyError
 from models import (
     UserCreate, UserUpdate, ClientCreate, ClientUpdate,
@@ -128,6 +130,75 @@ async def delete_client(client_id: str, admin: dict = Depends(require_admin)):
 
 CLIENT_HEADERS = ["file_no", "group", "client_name", "category"]
 
+CLIENT_IMPORT_ALIASES = {
+    "fileno": "file_no",
+    "file": "file_no",
+    "group": "group",
+    "clientname": "client_name",
+    "clientnames": "client_name",
+    "name": "client_name",
+    "category": "category",
+    "clientcategory": "category",
+}
+
+
+def _normalise_import_header(value) -> str:
+    return re.sub(r"[^a-z0-9]+", "", str(value or "").lower())
+
+
+def _clean_import_text(value) -> str:
+    if value is None:
+        return ""
+    if isinstance(value, float) and value.is_integer():
+        return str(int(value))
+    return str(value).replace("\t", " ").strip()
+
+
+def _looks_like_client_header(headers: list) -> bool:
+    keys = {_normalise_import_header(h) for h in headers}
+    return "fileno" in keys and ("clientname" in keys or "clientnames" in keys)
+
+
+def _map_client_import_row(row: dict) -> dict:
+    mapped = {}
+    for raw_key, value in row.items():
+        canonical = CLIENT_IMPORT_ALIASES.get(_normalise_import_header(raw_key))
+        if canonical:
+            mapped[canonical] = _clean_import_text(value)
+    return mapped
+
+
+def _read_client_import_rows(content: bytes, filename: str) -> list[dict]:
+    name = filename.lower()
+    if name.endswith(".csv"):
+        return [_map_client_import_row(row) for row in read_csv_bytes(content)]
+    if not name.endswith(".xlsx"):
+        raise HTTPException(400, "Unsupported file type. Use .csv or .xlsx")
+
+    from openpyxl import load_workbook
+    wb = load_workbook(io.BytesIO(content), read_only=True, data_only=True)
+    merged_rows = {}
+    for ws in wb.worksheets:
+        raw_rows = ws.iter_rows(values_only=True)
+        for header_row in raw_rows:
+            headers = list(header_row or [])
+            if not _looks_like_client_header(headers):
+                continue
+            for values in raw_rows:
+                if all(v is None or v == "" for v in values):
+                    continue
+                row = {str(headers[i] or ""): (values[i] if i < len(values) else "") for i in range(len(headers))}
+                mapped = _map_client_import_row(row)
+                if mapped.get("file_no") and mapped.get("client_name"):
+                    existing = merged_rows.get(mapped["file_no"])
+                    if not existing or (mapped.get("category") and not existing.get("category")):
+                        merged_rows[mapped["file_no"]] = mapped
+            break
+    if merged_rows:
+        return list(merged_rows.values())
+
+    return [_map_client_import_row(row) for row in read_xlsx_bytes(content)]
+
 
 @router.get("/clients/export")
 async def export_clients(format: str = Query("xlsx"), user: dict = Depends(get_current_user)):
@@ -144,21 +215,20 @@ async def export_clients(format: str = Query("xlsx"), user: dict = Depends(get_c
 async def import_clients(file: UploadFile = File(...), admin: dict = Depends(require_admin)):
     db = get_db()
     content = await file.read()
-    name = (file.filename or "").lower()
-    if name.endswith(".csv"):
-        rows = read_csv_bytes(content)
-    elif name.endswith(".xlsx"):
-        rows = read_xlsx_bytes(content)
-    else:
-        raise HTTPException(400, "Unsupported file type. Use .csv or .xlsx")
+    rows = _read_client_import_rows(content, file.filename or "")
     inserted = 0
     updated = 0
+    skipped = 0
+    seen_file_nos = set()
     for row in rows:
         file_no = str(row.get("file_no") or "").strip()
-        if not file_no:
+        if not file_no or file_no in seen_file_nos:
+            skipped += 1
             continue
+        seen_file_nos.add(file_no)
         client_name = str(row.get("client_name") or "").strip()
         if not client_name:
+            skipped += 1
             continue
         update = {
             "file_no": file_no,
@@ -175,8 +245,8 @@ async def import_clients(file: UploadFile = File(...), admin: dict = Depends(req
             doc = {"id": gen_id(), **update, "created_at": utcnow().isoformat()}
             await db.clients.insert_one(doc)
             inserted += 1
-    await log_audit(db, admin, "Clients", "Import", new_value={"inserted": inserted, "updated": updated})
-    return {"inserted": inserted, "updated": updated}
+    await log_audit(db, admin, "Clients", "Import", new_value={"inserted": inserted, "updated": updated, "skipped": skipped})
+    return {"inserted": inserted, "updated": updated, "skipped": skipped}
 
 
 # ---------- Workflow Stages ----------

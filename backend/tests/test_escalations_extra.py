@@ -9,7 +9,7 @@ import requests
 
 BASE = os.environ.get("TEST_BASE_URL", "https://itr-command-center.preview.emergentagent.com/api")
 ADMIN = ("admin@taxops.com", "Admin@123")
-USER = ("priya.sharma@taxops.com", "User@123")
+USER = ("codex.test.user@taxops.local", "User@Test123")
 
 
 def _login(email, password):
@@ -22,8 +22,35 @@ def _hdr(t):
     return {"Authorization": f"Bearer {t}"}
 
 
+def _ensure_user():
+    admin_token = _login(*ADMIN)
+    r = requests.post(f"{BASE}/auth/login", json={"email": USER[0], "password": USER[1]}, timeout=10)
+    if r.status_code == 200:
+        return r.json()["token"]
+    users = requests.get(f"{BASE}/users", headers=_hdr(admin_token), timeout=10)
+    users.raise_for_status()
+    match = next((u for u in users.json() if u.get("email") == USER[0]), None)
+    if match:
+        patched = requests.patch(
+            f"{BASE}/users/{match['id']}",
+            json={"password": USER[1], "role": "user", "active": True},
+            headers=_hdr(admin_token),
+            timeout=10,
+        )
+        patched.raise_for_status()
+    else:
+        created = requests.post(
+            f"{BASE}/users",
+            json={"email": USER[0], "name": "Codex Test User", "password": USER[1], "role": "user", "active": True},
+            headers=_hdr(admin_token),
+            timeout=10,
+        )
+        created.raise_for_status()
+    return _login(*USER)
+
+
 def test_non_admin_cannot_seed_fixtures():
-    u_tok = _login(*USER)
+    u_tok = _ensure_user()
     r = requests.post(f"{BASE}/test-fixtures/escalations/seed", headers=_hdr(u_tok), timeout=10)
     assert r.status_code == 403, f"Expected 403, got {r.status_code}: {r.text}"
 

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import api from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -22,8 +22,10 @@ const COLORS = {
 
 export default function Queries() {
   const [queries, setQueries] = useState([]);
-  const [search, setSearch] = useState("");
-  const [status, setStatus] = useState("all");
+  const [params] = useSearchParams();
+  const [search, setSearch] = useState(params.get("search") || "");
+  const [status, setStatus] = useState(params.get("status") || "all");
+  const [pendingOnly, setPendingOnly] = useState(params.get("pending") === "true");
   const [statuses, setStatuses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showAdd, setShowAdd] = useState(false);
@@ -33,7 +35,8 @@ export default function Queries() {
     setLoading(true);
     const q = new URLSearchParams();
     if (search) q.set("search", search);
-    if (status !== "all") q.set("status", status);
+    if (pendingOnly) q.set("pending", "true");
+    else if (status !== "all") q.set("status", status);
     const [r, s] = await Promise.all([
       api.get(`/queries?${q.toString()}`),
       api.get(`/dropdown-options?category=query_status`),
@@ -43,13 +46,20 @@ export default function Queries() {
     setLoading(false);
   };
 
-  useEffect(() => { load(); /* eslint-disable-next-line */ }, [status]);
+  useEffect(() => {
+    setSearch(params.get("search") || "");
+    setStatus(params.get("status") || "all");
+    setPendingOnly(params.get("pending") === "true");
+  }, [params]);
+
+  useEffect(() => { load(); /* eslint-disable-next-line */ }, [status, pendingOnly]);
   useEffect(() => { const t = setTimeout(load, 300); return () => clearTimeout(t); /* eslint-disable-next-line */ }, [search]);
 
   const onExport = async (format) => {
     const q = new URLSearchParams();
     q.set("format", format);
-    if (status !== "all") q.set("status", status);
+    if (pendingOnly) q.set("pending", "true");
+    else if (status !== "all") q.set("status", status);
     const r = await api.get(`/queries/export/file?${q.toString()}`, { responseType: "blob" });
     const url = URL.createObjectURL(r.data);
     const a = document.createElement("a");
@@ -79,10 +89,19 @@ export default function Queries() {
           <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
           <Input placeholder="Search queries…" value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" data-testid="queries-search" />
         </div>
-        <Select value={status} onValueChange={setStatus}>
+        <Select value={pendingOnly ? "pending" : status} onValueChange={(v) => {
+          if (v === "pending") {
+            setPendingOnly(true);
+            setStatus("all");
+          } else {
+            setPendingOnly(false);
+            setStatus(v);
+          }
+        }}>
           <SelectTrigger data-testid="queries-status-filter"><SelectValue placeholder="Status" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All statuses</SelectItem>
+            <SelectItem value="pending">Pending only</SelectItem>
             {statuses.filter((o) => o.active).map((o) => <SelectItem key={o.id} value={o.value}>{o.value}</SelectItem>)}
           </SelectContent>
         </Select>
@@ -93,18 +112,24 @@ export default function Queries() {
           <table className="w-full text-sm">
             <thead>
               <tr className="bg-slate-50 border-b border-slate-200">
-                {["Description", "Status", "Raised By", "Raised On", "Follow-up", "Closed On"].map((h) => (
+                {["Client", "Description", "Status", "Raised By", "Raised On", "Follow-up", "Closed On"].map((h) => (
                   <th key={h} className="text-left px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wider text-slate-500">{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
-              {loading && <tr><td colSpan={6} className="text-center py-8 text-slate-400"><Loader2 className="w-4 h-4 animate-spin inline mr-2" />Loading…</td></tr>}
-              {!loading && queries.length === 0 && <tr><td colSpan={6} className="text-center py-8 text-slate-400">No queries</td></tr>}
+              {loading && <tr><td colSpan={7} className="text-center py-8 text-slate-400"><Loader2 className="w-4 h-4 animate-spin inline mr-2" />Loading…</td></tr>}
+              {!loading && queries.length === 0 && <tr><td colSpan={7} className="text-center py-8 text-slate-400">No queries</td></tr>}
               {!loading && queries.map((q, idx) => {
                 const c = COLORS[q.query_status] || "#64748b";
                 return (
                   <tr key={q.id} data-testid={`query-row-${idx}`} className="border-b border-slate-100 hover:bg-slate-50/50 cursor-pointer" onClick={() => navigate(`/returns/${q.return_id}`)}>
+                    <td className="px-4 py-2.5">
+                      <div className="font-medium text-slate-800">{q.client_name || "—"}</div>
+                      <div className="text-[11px] text-slate-500">
+                        {q.return_inward_no || "—"}{q.file_no ? ` · ${q.file_no}` : ""}{q.group ? ` · ${q.group}` : ""}{q.fy ? ` · ${q.fy}` : ""}
+                      </div>
+                    </td>
                     <td className="px-4 py-2.5 text-slate-800">{q.query_description}</td>
                     <td className="px-4 py-2.5">
                       <span className="text-xs font-semibold border rounded-full px-2.5 py-0.5" style={{ color: c, backgroundColor: c + "12", borderColor: c + "55" }}>{q.query_status}</span>

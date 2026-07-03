@@ -19,6 +19,53 @@ const QUERY_STATUS_COLORS = {
   "Closed": "#10b981",
 };
 
+function valueLabel(value) {
+  if (value == null || value === "") return "—";
+  return String(value);
+}
+
+function fieldLabel(key) {
+  const labels = {
+    query_status: "Status",
+    follow_up_date: "Follow-up date",
+    query_closed_date: "Closed date",
+    remarks: "Remarks",
+    person_assigned_id: "Assignee",
+    current_stage_id: "Stage",
+  };
+  return labels[key] || key.replaceAll("_", " ");
+}
+
+function formatAuditSummary(a) {
+  if (a.action === "Stage Changed") {
+    return `Stage changed from ${valueLabel(a.old_value)} to ${valueLabel(a.new_value)}`;
+  }
+  if (a.action === "Person Assigned Changed") {
+    return `Assignee changed from ${valueLabel(a.old_value)} to ${valueLabel(a.new_value)}`;
+  }
+  if (a.action === "Create") {
+    return `Return created${a.new_value?.return_inward_no ? ` (${a.new_value.return_inward_no})` : ""}`;
+  }
+  if (a.module === "Queries" && a.action === "Query Added") {
+    return `Query added: ${valueLabel(a.new_value?.description)}`;
+  }
+  if (a.module === "Queries" && (a.action === "Query Updated" || a.action === "Query Closed")) {
+    const oldValue = a.old_value || {};
+    const newValue = a.new_value || {};
+    const changed = Object.keys(newValue)
+      .filter((key) => key !== "updated_at" && oldValue[key] !== newValue[key])
+      .map((key) => `${fieldLabel(key)}: ${valueLabel(oldValue[key])} to ${valueLabel(newValue[key])}`);
+
+    if (a.action === "Query Closed" && changed.length === 0) return "Query closed";
+    if (changed.length === 0) return "Query updated";
+    return `${a.action === "Query Closed" ? "Query closed" : "Query updated"} · ${changed.join(" · ")}`;
+  }
+  if (a.action === "Delete") {
+    return `${a.module || "Item"} deleted`;
+  }
+  return a.action;
+}
+
 export default function ReturnDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -53,6 +100,20 @@ export default function ReturnDetail() {
     setAuditLogs(al.data);
     setFyOptions(fy.data);
     setItrForms(itr.data);
+
+    if (q.data.length > 0) {
+      const queryAuditResponses = await Promise.all(
+        q.data.map((query) => api.get(`/audit-logs?entity_id=${query.id}&limit=100`))
+      );
+      const combined = [
+        ...al.data,
+        ...queryAuditResponses.flatMap((res) => res.data),
+      ];
+      const byId = new Map(combined.map((entry) => [entry.id, entry]));
+      setAuditLogs(
+        Array.from(byId.values()).sort((a, b) => String(b.timestamp).localeCompare(String(a.timestamp)))
+      );
+    }
   };
 
   useEffect(() => { load(); /* eslint-disable-next-line */ }, [id]);
@@ -172,12 +233,7 @@ export default function ReturnDetail() {
             <div key={a.id} className="flex items-start gap-3 text-sm py-2 border-b border-slate-100 last:border-0">
               <div className="w-1.5 h-1.5 rounded-full bg-emerald-600 mt-2" />
               <div className="flex-1">
-                <div className="text-slate-800">
-                  <span className="font-semibold">{a.action}</span>
-                  {a.old_value != null && a.new_value != null && (
-                    <span className="text-slate-500"> · {JSON.stringify(a.old_value)} → {JSON.stringify(a.new_value)}</span>
-                  )}
-                </div>
+                <div className="text-slate-800">{formatAuditSummary(a)}</div>
                 <div className="text-[11px] text-slate-500">{fmtDateTime(a.timestamp)} · {a.user_name}</div>
               </div>
             </div>
@@ -206,7 +262,20 @@ function QueryCard({ q, idx, statuses, onChange }) {
   const [remarks, setRemarks] = useState(q.remarks || "");
   const [saving, setSaving] = useState(false);
 
+  useEffect(() => {
+    setStatus(q.query_status);
+    setFollowUp(q.follow_up_date || "");
+    setRemarks(q.remarks || "");
+  }, [q]);
+
+  const hasChanges = (
+    status !== q.query_status
+    || (followUp || "") !== (q.follow_up_date || "")
+    || (remarks || "") !== (q.remarks || "")
+  );
+
   const save = async () => {
+    if (!hasChanges) return;
     setSaving(true);
     try {
       await api.patch(`/queries/${q.id}`, { query_status: status, follow_up_date: followUp || null, remarks });
@@ -251,7 +320,7 @@ function QueryCard({ q, idx, statuses, onChange }) {
         </div>
       </div>
       <div className="flex justify-end mt-3">
-        <Button size="sm" data-testid={`query-save-${idx}`} disabled={saving} onClick={save} className="bg-emerald-800 hover:bg-emerald-900">
+        <Button size="sm" data-testid={`query-save-${idx}`} disabled={saving || !hasChanges} onClick={save} className="bg-emerald-800 hover:bg-emerald-900">
           {saving && <Loader2 className="w-4 h-4 mr-1.5 animate-spin" />} Save
         </Button>
       </div>

@@ -4,7 +4,7 @@ from typing import Optional
 from datetime import datetime, timezone
 from auth import get_current_user, require_admin
 from db import get_db
-from escalation import compute_breaches, run_escalation_job, days_in_stage, days_since
+from escalation import compute_breaches, run_escalation_job, return_stage_age_days
 from seed_test_fixtures import seed_escalation_fixtures, remove_existing_fixtures
 
 router = APIRouter(tags=["dashboard"])
@@ -74,7 +74,7 @@ async def ageing_heatmap(user: dict = Depends(get_current_user)):
     for r in returns:
         if r.get("current_stage_id") in completed_ids:
             continue
-        d = days_in_stage(r.get("stage_entered_at") or r.get("created_at"))
+        d = return_stage_age_days(r)
         if d <= 3:
             buckets["0-3"] += 1
             bucket_returns["0-3"].append(r["id"])
@@ -107,7 +107,7 @@ async def sla_monitoring(user: dict = Depends(get_current_user)):
         breached = 0
         avg_age = 0
         for r in relevant:
-            d = days_in_stage(r.get("stage_entered_at") or r.get("created_at"))
+            d = return_stage_age_days(r)
             avg_age += d
             if s.get("sla_days", 0) > 0 and d > s["sla_days"]:
                 breached += 1
@@ -123,6 +123,7 @@ async def sla_monitoring(user: dict = Depends(get_current_user)):
     return {
         "sla_breaches": data["sla_breaches"],
         "upcoming_sla_breaches": data["upcoming_sla_breaches"],
+        "escalation_breaches": data["escalation_breaches"],
         "stage_delays": stage_delays,
     }
 

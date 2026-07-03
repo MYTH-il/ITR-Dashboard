@@ -26,11 +26,13 @@ export default function Returns() {
   const [fyOptions, setFyOptions] = useState([]);
   const [itrForms, setItrForms] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useState(params.get("search") || "");
   const [stageFilter, setStageFilter] = useState(params.get("stage_id") || "all");
-  const [personFilter, setPersonFilter] = useState("all");
-  const [overdueOnly, setOverdueOnly] = useState(false);
-  const [fyFilter, setFyFilter] = useState("all");
+  const [personFilter, setPersonFilter] = useState(params.get("person_id") || "all");
+  const [overdueOnly, setOverdueOnly] = useState(params.get("overdue") === "true");
+  const [fyFilter, setFyFilter] = useState(params.get("fy") || "all");
+  const [dashboardFilter, setDashboardFilter] = useState(params.get("dashboard_filter") || "");
+  const [stageAgeBucket, setStageAgeBucket] = useState(params.get("stage_age_bucket") || "");
   const [showAdd, setShowAdd] = useState(false);
 
   const load = async () => {
@@ -41,6 +43,8 @@ export default function Returns() {
     if (personFilter !== "all") q.set("person_id", personFilter);
     if (fyFilter !== "all") q.set("fy", fyFilter);
     if (overdueOnly) q.set("overdue", "true");
+    if (dashboardFilter) q.set("dashboard_filter", dashboardFilter);
+    if (stageAgeBucket) q.set("stage_age_bucket", stageAgeBucket);
     const [r, s, u, rt, fy, itr] = await Promise.all([
       api.get(`/returns?${q.toString()}`),
       api.get("/workflow-stages"),
@@ -58,7 +62,17 @@ export default function Returns() {
     setLoading(false);
   };
 
-  useEffect(() => { load(); /* eslint-disable-next-line */ }, [stageFilter, personFilter, overdueOnly, fyFilter]);
+  useEffect(() => {
+    setSearch(params.get("search") || "");
+    setStageFilter(params.get("stage_id") || "all");
+    setPersonFilter(params.get("person_id") || "all");
+    setOverdueOnly(params.get("overdue") === "true");
+    setFyFilter(params.get("fy") || "all");
+    setDashboardFilter(params.get("dashboard_filter") || "");
+    setStageAgeBucket(params.get("stage_age_bucket") || "");
+  }, [params]);
+
+  useEffect(() => { load(); /* eslint-disable-next-line */ }, [stageFilter, personFilter, overdueOnly, fyFilter, dashboardFilter, stageAgeBucket]);
 
   useEffect(() => {
     const t = setTimeout(load, 300);
@@ -93,25 +107,25 @@ export default function Returns() {
 
   return (
     <div className="space-y-5">
-      <div className="flex items-end justify-between flex-wrap gap-3">
-        <div>
+      <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_auto] xl:items-end">
+        <div className="min-w-0">
           <div className="text-[11px] uppercase tracking-[0.18em] text-slate-500 mb-1">Operations</div>
-          <h1 className="text-3xl font-semibold tracking-tight text-slate-900" style={{ fontFamily: "Outfit" }}>Return Master</h1>
+          <h1 className="text-2xl font-semibold tracking-tight text-slate-900 sm:text-3xl" style={{ fontFamily: "Outfit" }}>Return Master</h1>
         </div>
-        <div className="flex items-center gap-2 flex-wrap">
-          <Button variant="outline" size="sm" data-testid="returns-refresh" onClick={load}><RefreshCw className="w-4 h-4 mr-1.5" /> Refresh</Button>
-          <Button variant="outline" size="sm" data-testid="returns-export-csv" onClick={() => onDownload("csv")}><Download className="w-4 h-4 mr-1.5" /> CSV</Button>
-          <Button variant="outline" size="sm" data-testid="returns-export-xlsx" onClick={() => onDownload("xlsx")}><Download className="w-4 h-4 mr-1.5" /> Excel</Button>
-          <Button variant="outline" size="sm" data-testid="returns-export-pdf" onClick={() => onDownload("pdf")}><Download className="w-4 h-4 mr-1.5" /> PDF</Button>
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6 xl:w-auto">
+          <Button variant="outline" size="sm" className="w-full justify-center" data-testid="returns-refresh" onClick={load}><RefreshCw className="w-4 h-4 mr-1.5" /> Refresh</Button>
+          <Button variant="outline" size="sm" className="w-full justify-center" data-testid="returns-export-csv" onClick={() => onDownload("csv")}><Download className="w-4 h-4 mr-1.5" /> CSV</Button>
+          <Button variant="outline" size="sm" className="w-full justify-center" data-testid="returns-export-xlsx" onClick={() => onDownload("xlsx")}><Download className="w-4 h-4 mr-1.5" /> Excel</Button>
+          <Button variant="outline" size="sm" className="w-full justify-center" data-testid="returns-export-pdf" onClick={() => onDownload("pdf")}><Download className="w-4 h-4 mr-1.5" /> PDF</Button>
           {isAdmin && (
             <>
-              <label className="inline-flex">
+              <label className="block">
                 <input type="file" accept=".csv,.xlsx" className="hidden" onChange={onImport} data-testid="returns-import-input" />
-                <span className="inline-flex items-center text-sm font-medium border border-slate-200 bg-white hover:bg-slate-50 h-9 px-3 rounded-md cursor-pointer text-slate-700">
+                <span className="inline-flex h-9 w-full cursor-pointer items-center justify-center rounded-md border border-slate-200 bg-white px-3 text-sm font-medium text-slate-700 hover:bg-slate-50">
                   <Upload className="w-4 h-4 mr-1.5" /> Import
                 </span>
               </label>
-              <Button size="sm" className="bg-emerald-800 hover:bg-emerald-900" data-testid="new-return-button" onClick={() => setShowAdd(true)}>
+              <Button size="sm" className="w-full justify-center bg-emerald-800 hover:bg-emerald-900" data-testid="new-return-button" onClick={() => setShowAdd(true)}>
                 <Plus className="w-4 h-4 mr-1.5" /> New Return
               </Button>
             </>
@@ -121,19 +135,19 @@ export default function Returns() {
 
       {/* Filters */}
       <div className="dashboard-card p-4">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-          <div className="relative md:col-span-2">
+        <div className="grid grid-cols-1 gap-3 lg:grid-cols-[minmax(220px,2fr)_minmax(180px,1fr)_minmax(180px,1fr)]">
+          <div className="relative min-w-0">
             <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
             <Input data-testid="returns-search" placeholder="Search by RIN, client, file no., task id…" value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
           </div>
-          <Select value={stageFilter} onValueChange={setStageFilter}>
+          <Select value={stageFilter} onValueChange={(v) => { setDashboardFilter(""); setStageAgeBucket(""); setStageFilter(v); }}>
             <SelectTrigger data-testid="returns-stage-filter"><SelectValue placeholder="All stages" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All stages</SelectItem>
               {stages.map((s) => <SelectItem key={s.id} value={s.id}>{s.sequence}. {s.stage_name}</SelectItem>)}
             </SelectContent>
           </Select>
-          <Select value={personFilter} onValueChange={setPersonFilter}>
+          <Select value={personFilter} onValueChange={(v) => { setDashboardFilter(""); setStageAgeBucket(""); setPersonFilter(v); }}>
             <SelectTrigger data-testid="returns-person-filter"><SelectValue placeholder="All assignees" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All assignees</SelectItem>
@@ -142,7 +156,7 @@ export default function Returns() {
           </Select>
         </div>
         <div className="mt-3 flex items-center gap-3 flex-wrap">
-          <Select value={fyFilter} onValueChange={setFyFilter}>
+          <Select value={fyFilter} onValueChange={(v) => { setDashboardFilter(""); setStageAgeBucket(""); setFyFilter(v); }}>
             <SelectTrigger data-testid="returns-fy-filter" className="h-9 w-[160px]"><SelectValue placeholder="All FY" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All FY</SelectItem>
@@ -150,20 +164,47 @@ export default function Returns() {
             </SelectContent>
           </Select>
           <label className="inline-flex items-center gap-2 text-sm text-slate-600">
-            <input type="checkbox" checked={overdueOnly} onChange={(e) => setOverdueOnly(e.target.checked)} className="rounded border-slate-300" data-testid="returns-overdue-filter" />
+            <input type="checkbox" checked={overdueOnly} onChange={(e) => { setDashboardFilter(""); setStageAgeBucket(""); setOverdueOnly(e.target.checked); }} className="rounded border-slate-300" data-testid="returns-overdue-filter" />
             Overdue only
           </label>
+          {(dashboardFilter || stageAgeBucket) && (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setDashboardFilter("");
+                setStageAgeBucket("");
+                setParams({});
+              }}
+            >
+              Clear dashboard filter
+            </Button>
+          )}
           <div className="text-xs text-slate-500 ml-auto tabular-num">{returns.length} records</div>
         </div>
       </div>
 
       <div className="dashboard-card overflow-hidden">
-        <div className="overflow-x-auto max-h-[65vh]">
-          <table className="w-full text-sm">
+        <div className="max-h-[65vh] overflow-x-auto">
+          <table className="w-full table-fixed text-sm">
+            <colgroup>
+              <col className="w-[9%]" />
+              <col className="w-[10%]" />
+              <col className="w-[19%]" />
+              <col className="w-[7%]" />
+              <col className="w-[8%]" />
+              <col className="w-[6%]" />
+              <col className="w-[8%]" />
+              <col className="w-[12%]" />
+              <col className="w-[9%]" />
+              <col className="w-[6%]" />
+              <col className="w-[6%]" />
+            </colgroup>
             <thead className="sticky top-0 z-10">
               <tr className="bg-slate-50 border-b border-slate-200">
                 {["RIN", "Inward", "Client", "FY", "Type", "ITR", "Due", "Stage", "Assignee", "Stage Age", "Action"].map((h) => (
-                  <th key={h} className="text-left px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wider text-slate-500 whitespace-nowrap">{h}</th>
+                  <th key={h} className="truncate px-3 py-2.5 text-left text-[10px] font-semibold uppercase tracking-wider text-slate-500">{h}</th>
                 ))}
               </tr>
             </thead>
@@ -183,28 +224,28 @@ export default function Returns() {
                     className="border-b border-slate-100 hover:bg-slate-50/50 cursor-pointer transition-colors"
                     onClick={() => navigate(`/returns/${r.id}`)}
                   >
-                    <td className="px-4 py-2.5 font-mono text-xs text-slate-700 whitespace-nowrap">{r.return_inward_no}</td>
-                    <td className="px-4 py-2.5 text-slate-600 whitespace-nowrap">{fmtDate(r.return_inward_date)}</td>
-                    <td className="px-4 py-2.5">
-                      <div className="font-medium text-slate-800">{r.client_name}</div>
-                      <div className="text-[11px] text-slate-500">{r.file_no} · {r.group}</div>
+                    <td className="truncate px-3 py-2.5 font-mono text-xs text-slate-700">{r.return_inward_no}</td>
+                    <td className="truncate px-3 py-2.5 text-slate-600">{fmtDate(r.return_inward_date)}</td>
+                    <td className="px-3 py-2.5">
+                      <div className="truncate font-medium text-slate-800" title={r.client_name}>{r.client_name}</div>
+                      <div className="truncate text-[11px] text-slate-500" title={`${r.file_no} · ${r.group}`}>{r.file_no} · {r.group}</div>
                     </td>
-                    <td className="px-4 py-2.5 text-slate-700 whitespace-nowrap">{r.fy}</td>
-                    <td className="px-4 py-2.5"><span className="inline-flex text-xs text-slate-600 bg-slate-100 px-2 py-0.5 rounded-full">{r.return_type}</span></td>
-                    <td className="px-4 py-2.5 text-slate-700 whitespace-nowrap">{r.itr_form || "—"}</td>
-                    <td className="px-4 py-2.5 text-slate-700 whitespace-nowrap">{fmtDate(r.due_date)}</td>
-                    <td className="px-4 py-2.5">
-                      <span className="inline-flex items-center text-xs font-semibold border rounded-full px-2.5 py-0.5 whitespace-nowrap" style={stageBadgeStyle(r.current_stage_colour)}>
+                    <td className="truncate px-3 py-2.5 text-slate-700">{r.fy}</td>
+                    <td className="px-3 py-2.5"><span className="inline-flex max-w-full truncate rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-600">{r.return_type}</span></td>
+                    <td className="truncate px-3 py-2.5 text-slate-700">{r.itr_form || "—"}</td>
+                    <td className="truncate px-3 py-2.5 text-slate-700">{fmtDate(r.due_date)}</td>
+                    <td className="px-3 py-2.5">
+                      <span className="inline-flex max-w-full items-center truncate rounded-full border px-2 py-0.5 text-xs font-semibold" style={stageBadgeStyle(r.current_stage_colour)} title={r.current_stage_name}>
                         {r.current_stage_name}
                       </span>
                     </td>
-                    <td className="px-4 py-2.5 text-slate-700 whitespace-nowrap">{r.person_assigned_name || "—"}</td>
-                    <td className="px-4 py-2.5 whitespace-nowrap">
-                      <span className="inline-flex items-center gap-1.5 tabular-num text-xs font-semibold" style={{ color: bucket.color }}>
+                    <td className="truncate px-3 py-2.5 text-slate-700" title={r.person_assigned_name || ""}>{r.person_assigned_name || "—"}</td>
+                    <td className="px-3 py-2.5">
+                      <span className="inline-flex items-center gap-1.5 text-xs font-semibold tabular-num" style={{ color: bucket.color }}>
                         <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: bucket.color }} /> {r.stage_ageing_days}d
                       </span>
                     </td>
-                    <td className="px-4 py-2.5 text-slate-600 text-xs">{r.next_action_required}</td>
+                    <td className="truncate px-3 py-2.5 text-xs text-slate-600" title={r.next_action_required}>{r.next_action_required}</td>
                   </tr>
                 );
               })}
@@ -226,6 +267,7 @@ function AddReturnDialog({ open, onClose, onSaved, stages, users, returnTypes, f
   }), []);
   const [form, setForm] = useState(blank);
   const [saving, setSaving] = useState(false);
+  const [clientLookup, setClientLookup] = useState({ loading: false, message: "" });
 
   useEffect(() => {
     if (open) {
@@ -239,6 +281,42 @@ function AddReturnDialog({ open, onClose, onSaved, stages, users, returnTypes, f
   }, [open, stages, blank, fyOptions, itrForms]);
 
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
+
+  useEffect(() => {
+    if (!open) return;
+    const fileNo = form.file_no.trim();
+    if (!fileNo) {
+      setClientLookup({ loading: false, message: "" });
+      return;
+    }
+
+    let cancelled = false;
+    setClientLookup({ loading: true, message: "" });
+    const t = setTimeout(async () => {
+      try {
+        const r = await api.get(`/clients?search=${encodeURIComponent(fileNo)}`);
+        if (cancelled) return;
+        const exact = r.data.find((c) => String(c.file_no || "").trim().toLowerCase() === fileNo.toLowerCase());
+        if (exact) {
+          setForm((f) => ({
+            ...f,
+            group: exact.group || "",
+            client_name: exact.client_name || "",
+          }));
+          setClientLookup({ loading: false, message: "Client details filled from Client Master" });
+        } else {
+          setClientLookup({ loading: false, message: "No exact client found for this file no." });
+        }
+      } catch {
+        if (!cancelled) setClientLookup({ loading: false, message: "Client lookup failed" });
+      }
+    }, 300);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(t);
+    };
+  }, [open, form.file_no]);
 
   const submit = async (e) => {
     e.preventDefault();
@@ -271,7 +349,14 @@ function AddReturnDialog({ open, onClose, onSaved, stages, users, returnTypes, f
               <SelectContent>{fyOptions.filter(o => o.active).map((o) => <SelectItem key={o.id} value={o.value}>{o.value}</SelectItem>)}</SelectContent>
             </Select>
           </Field>
-          <Field label="File No." required><Input value={form.file_no} onChange={(e) => set("file_no", e.target.value)} required /></Field>
+          <Field label="File No." required>
+            <Input value={form.file_no} onChange={(e) => set("file_no", e.target.value)} required />
+            {(clientLookup.loading || clientLookup.message) && (
+              <div className="mt-1 text-[11px] text-slate-500">
+                {clientLookup.loading ? "Looking up client..." : clientLookup.message}
+              </div>
+            )}
+          </Field>
           <Field label="Group"><Input value={form.group} onChange={(e) => set("group", e.target.value)} /></Field>
           <Field label="Client Name" required full><Input value={form.client_name} onChange={(e) => set("client_name", e.target.value)} required /></Field>
           <Field label="Return Type">
