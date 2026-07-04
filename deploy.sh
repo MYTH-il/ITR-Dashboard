@@ -7,6 +7,7 @@ set -e
 
 REPO_URL="https://github.com/MYTH-il/ITR-Dashboard.git"
 APP_DIR="$HOME/ITR-Dashboard"
+STATIC_DIR="/var/www/itr-dashboard"
 SWAP_FILE="/swapfile"
 SWAP_SIZE="3G"
 NODE_BUILD_MEMORY_MB="768"
@@ -295,6 +296,19 @@ echo "  GENERATE_SOURCEMAP=$GENERATE_SOURCEMAP"
 echo "  Memory before build:"
 free -h
 CI=false yarn build -q
+if [ ! -f "$APP_DIR/frontend/build/index.html" ]; then
+    echo "ERROR: Frontend build completed, but index.html was not created."
+    exit 1
+fi
+
+echo ">>> Publishing frontend build to $STATIC_DIR"
+sudo rm -rf "$STATIC_DIR"
+sudo mkdir -p "$STATIC_DIR"
+sudo cp -a "$APP_DIR/frontend/build/." "$STATIC_DIR/"
+sudo chown -R www-data:www-data "$STATIC_DIR"
+sudo find "$STATIC_DIR" -type d -exec chmod 755 {} \;
+sudo find "$STATIC_DIR" -type f -exec chmod 644 {} \;
+test -f "$STATIC_DIR/index.html" || { echo "ERROR: $STATIC_DIR/index.html is missing"; exit 1; }
 echo "✓ Frontend built successfully"
 
 # ============================================================================
@@ -348,11 +362,11 @@ server {
     listen 80;
     server_name $DOMAIN;
 
-    root $APP_DIR/frontend/build;
+    root $STATIC_DIR;
     index index.html;
 
     location / {
-        try_files \$uri /index.html;
+        try_files \$uri \$uri/ /index.html;
     }
 
     location /api/ {

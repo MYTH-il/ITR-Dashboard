@@ -207,6 +207,46 @@ sudo journalctl -u itr-backend -n 50 --no-pager
 ```
 Check logs for the actual error (usually MongoDB connection or missing environment variable).
 
+**Admin login says wrong password after deployment**
+Current versions of `deploy.sh` quote `.env` values so passwords with special
+characters are preserved. If an older deployment wrote the password unquoted,
+reset the admin password directly from the server:
+
+```bash
+cd ~/ITR-Dashboard/backend
+source venv/bin/activate
+python3 - <<'PY'
+import asyncio
+import getpass
+import os
+from pathlib import Path
+from dotenv import load_dotenv
+
+load_dotenv(Path(".env"))
+
+from auth import hash_password
+from db import init_db, close_db
+
+email = os.environ["ADMIN_EMAIL"].lower().strip()
+password = getpass.getpass("New admin password: ")
+
+async def main():
+    db = init_db()
+    result = await db.users.update_one(
+        {"email": email},
+        {"$set": {"password_hash": hash_password(password), "role": "admin", "active": True}},
+        upsert=False,
+    )
+    await close_db()
+    if result.matched_count != 1:
+        raise SystemExit(f"No admin user found for {email}")
+    print(f"Password reset for {email}")
+
+asyncio.run(main())
+PY
+sudo systemctl restart itr-backend
+```
+
 **MongoDB `InvalidURI` username/password escaping error**
 If the backend log says `Username and password must be escaped according to RFC
 3986`, your MongoDB Atlas username or password contains special characters that
@@ -231,8 +271,67 @@ sudo journalctl -u itr-backend -n 30 --no-pager
 
 Example: password `pa@ss#word` becomes `pa%40ss%23word`.
 
+**MongoDB SSL handshake failed from EC2**
+If logs show `SSL handshake failed` or `tlsv1 alert internal error` for Atlas
+hosts, Atlas is usually rejecting the EC2 instance before MongoDB auth. Check
+that the instance's current public IP is allowed in Atlas Network Access:
+
+```bash
+curl -s https://checkip.amazonaws.com
+```
+
+In MongoDB Atlas, go to **Security > Network Access**, add that public IP, and
+wait until the rule is active. If you recreated the EC2 instance or changed the
+Elastic IP, the old allowlist entry will not match.
+
+Then test from the server:
+
+```bash
+cd ~/ITR-Dashboard/backend
+source venv/bin/activate
+python3 - <<'PY'
+import os
+from pathlib import Path
+from dotenv import load_dotenv
+from pymongo import MongoClient
+
+load_dotenv(Path(".env"))
+client = MongoClient(os.environ["MONGO_URL"], serverSelectionTimeoutMS=15000)
+client.admin.command("ping")
+print("MongoDB Atlas connection ok")
+client.close()
+PY
+```
+
 **502 Bad Gateway**
 The backend isn't listening on port 8001. Check `systemctl status itr-backend`.
+
+**Nginx shows Internal Server Error at the website root**
+This usually means Nginx cannot find or read the React `index.html`. Current
+versions of `deploy.sh` publish the frontend build to `/var/www/itr-dashboard`.
+To repair an older deployment manually:
+
+```bash
+cd ~/ITR-Dashboard/frontend
+test -f build/index.html
+
+sudo rm -rf /var/www/itr-dashboard
+sudo mkdir -p /var/www/itr-dashboard
+sudo cp -a build/. /var/www/itr-dashboard/
+sudo chown -R www-data:www-data /var/www/itr-dashboard
+sudo find /var/www/itr-dashboard -type d -exec chmod 755 {} \;
+sudo find /var/www/itr-dashboard -type f -exec chmod 644 {} \;
+
+sudo sed -i 's#root .*/frontend/build;#root /var/www/itr-dashboard;#' /etc/nginx/sites-available/itr-dashboard
+sudo nginx -t
+sudo systemctl reload nginx
+```
+
+If it still fails, check:
+
+```bash
+sudo tail -50 /var/log/nginx/error.log
+```
 
 **Can't request HTTPS certificate**
 Make sure your DuckDNS domain actually resolves to this instance:
