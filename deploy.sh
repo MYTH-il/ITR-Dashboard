@@ -39,7 +39,7 @@ ensure_swap() {
 }
 
 normalize_mongo_url() {
-    MONGO_URL="$MONGO_URL" python - <<'PY'
+    MONGO_URL="$MONGO_URL" python3 - <<'PY'
 import os
 import sys
 from urllib.parse import quote_plus, unquote_plus
