@@ -7,6 +7,36 @@ set -e
 
 REPO_URL="https://github.com/MYTH-il/ITR-Dashboard.git"
 APP_DIR="$HOME/ITR-Dashboard"
+SWAP_FILE="/swapfile"
+SWAP_SIZE="3G"
+NODE_BUILD_MEMORY_MB="768"
+
+ensure_swap() {
+    if swapon --show=NAME | grep -qx "$SWAP_FILE"; then
+        echo "  Swap already active at $SWAP_FILE"
+        return
+    fi
+
+    if [ -f "$SWAP_FILE" ]; then
+        echo "  Enabling existing swap file at $SWAP_FILE"
+        sudo chmod 600 "$SWAP_FILE"
+        sudo mkswap -f "$SWAP_FILE" >/dev/null
+        sudo swapon "$SWAP_FILE"
+    else
+        echo "  Creating $SWAP_SIZE swap file at $SWAP_FILE"
+        sudo fallocate -l "$SWAP_SIZE" "$SWAP_FILE" || sudo dd if=/dev/zero of="$SWAP_FILE" bs=1M count=3072 status=progress
+        sudo chmod 600 "$SWAP_FILE"
+        sudo mkswap "$SWAP_FILE" >/dev/null
+        sudo swapon "$SWAP_FILE"
+    fi
+
+    if ! grep -q "^$SWAP_FILE " /etc/fstab; then
+        echo "$SWAP_FILE none swap sw 0 0" | sudo tee -a /etc/fstab >/dev/null
+    fi
+
+    echo "  Active memory/swap:"
+    free -h
+}
 
 echo "=========================================="
 echo "ITR Dashboard — Complete Deployment"
@@ -39,14 +69,33 @@ echo ">>> STEP 1: Installing system dependencies"
 sudo apt-get update
 sudo apt-get upgrade -y
 sudo apt-get install -y \
+    ca-certificates gnupg \
     curl wget zip unzip \
     git build-essential \
     python3 python3-venv python3-pip \
-    nodejs dnsutils \
+    dnsutils \
     nginx certbot python3-certbot-nginx
 
-sudo npm install -g yarn
+echo ">>> Installing Node.js 20 + npm"
+curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+sudo apt-get install -y nodejs
+
+echo ">>> Installing Yarn 1.x"
+sudo npm install -g yarn@1.22.22
+
+command -v node >/dev/null || { echo "ERROR: node was not installed"; exit 1; }
+command -v npm >/dev/null || { echo "ERROR: npm was not installed"; exit 1; }
+command -v yarn >/dev/null || { echo "ERROR: yarn was not installed"; exit 1; }
+
+echo "  Node: $(node --version)"
+echo "  npm: $(npm --version)"
+echo "  Yarn: $(yarn --version)"
 echo "✓ System packages installed"
+
+echo
+echo ">>> Configuring swap for low-memory EC2 builds"
+ensure_swap
+echo "✓ Swap configured"
 
 # ============================================================================
 # STEP 2: Clone repo
@@ -170,7 +219,13 @@ echo
 echo ">>> STEP 6: Frontend build (Node + yarn)"
 cd "$APP_DIR/frontend"
 rm -rf node_modules package-lock.json build
-yarn install -q
+yarn install --frozen-lockfile -q
+export NODE_OPTIONS="--max-old-space-size=$NODE_BUILD_MEMORY_MB"
+export GENERATE_SOURCEMAP=false
+echo "  NODE_OPTIONS=$NODE_OPTIONS"
+echo "  GENERATE_SOURCEMAP=$GENERATE_SOURCEMAP"
+echo "  Memory before build:"
+free -h
 CI=false yarn build -q
 echo "✓ Frontend built successfully"
 
