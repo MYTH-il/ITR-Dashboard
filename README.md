@@ -26,7 +26,7 @@ Deploy this app to AWS EC2 + MongoDB Atlas in ~15 minutes:
 SSH into your instance and run:
 
 ```bash
-curl -O https://raw.githubusercontent.com/MYTH-il/ITR-Dashboard/main/deploy.sh
+curl -fL -o deploy.sh https://raw.githubusercontent.com/MYTH-il/ITR-Dashboard/master/deploy.sh
 chmod +x deploy.sh
 ./deploy.sh
 ```
@@ -43,6 +43,12 @@ When prompted, provide:
 - Your DuckDNS subdomain (e.g., `itr-dashboard.duckdns.org`)
 - MongoDB Atlas connection string (`MONGO_URL`)
 - Admin password
+
+Paste the MongoDB Atlas connection string with your actual database username
+and password. Do not leave the template angle brackets, for example use
+`myuser:mypassword`, not `<db_user>:<pwd>`. The deploy script automatically
+URL-encodes the username/password portion if your password contains characters
+such as `@`, `#`, `/`, `?`, `:`, `%`, or `&`.
 
 That's it — the app will be running at `https://your-subdomain.duckdns.org`.
 
@@ -200,6 +206,30 @@ sudo certbot renew --dry-run
 sudo journalctl -u itr-backend -n 50 --no-pager
 ```
 Check logs for the actual error (usually MongoDB connection or missing environment variable).
+
+**MongoDB `InvalidURI` username/password escaping error**
+If the backend log says `Username and password must be escaped according to RFC
+3986`, your MongoDB Atlas username or password contains special characters that
+must be URL-encoded inside `MONGO_URL`. Current versions of `deploy.sh`
+automatically encode this when you paste the connection string during setup.
+
+If you are repairing an existing failed deployment manually, encode just the
+password:
+
+```bash
+python3 -c 'from urllib.parse import quote_plus; print(quote_plus("your-password-here"))'
+```
+
+Then edit `~/ITR-Dashboard/backend/.env` and replace only the password portion
+of `MONGO_URL` with the encoded value:
+
+```bash
+nano ~/ITR-Dashboard/backend/.env
+sudo systemctl restart itr-backend
+sudo journalctl -u itr-backend -n 30 --no-pager
+```
+
+Example: password `pa@ss#word` becomes `pa%40ss%23word`.
 
 **502 Bad Gateway**
 The backend isn't listening on port 8001. Check `systemctl status itr-backend`.

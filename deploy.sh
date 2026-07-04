@@ -38,6 +38,67 @@ ensure_swap() {
     free -h
 }
 
+normalize_mongo_url() {
+    MONGO_URL="$MONGO_URL" python - <<'PY'
+import os
+import sys
+from urllib.parse import quote_plus, unquote_plus
+
+url = os.environ["MONGO_URL"].strip()
+
+if "<" in url or ">" in url:
+    print("ERROR: Replace <db_user> and <pwd> with your actual MongoDB Atlas database user credentials.", file=sys.stderr)
+    print("Do not include angle brackets in MONGO_URL.", file=sys.stderr)
+    sys.exit(1)
+
+if not (url.startswith("mongodb://") or url.startswith("mongodb+srv://")):
+    print("ERROR: MONGO_URL must start with mongodb:// or mongodb+srv://", file=sys.stderr)
+    sys.exit(1)
+
+scheme, rest = url.split("://", 1)
+if "@" not in rest:
+    print("ERROR: MONGO_URL must include username and password before the cluster host.", file=sys.stderr)
+    sys.exit(1)
+
+userinfo, host_and_path = rest.rsplit("@", 1)
+if ":" not in userinfo:
+    print("ERROR: MONGO_URL credentials must use username:password before the @ sign.", file=sys.stderr)
+    sys.exit(1)
+
+username, password = userinfo.split(":", 1)
+if not username or not password:
+    print("ERROR: MongoDB username and password cannot be empty.", file=sys.stderr)
+    sys.exit(1)
+
+encoded_username = quote_plus(unquote_plus(username))
+encoded_password = quote_plus(unquote_plus(password))
+print(f"{scheme}://{encoded_username}:{encoded_password}@{host_and_path}")
+PY
+}
+
+validate_mongo_url() {
+    set +e
+    MONGO_URL="$MONGO_URL" python - <<'PY'
+import os
+import sys
+from pymongo.uri_parser import parse_uri
+
+try:
+    parse_uri(os.environ["MONGO_URL"])
+except Exception as exc:
+    print(f"ERROR: Invalid MongoDB connection string: {exc}", file=sys.stderr)
+    print("", file=sys.stderr)
+    print("MongoDB usernames and passwords must be URL-encoded in MONGO_URL.", file=sys.stderr)
+    print("If your password contains characters such as @ # / ? : % &, encode it first.", file=sys.stderr)
+    print("Example encoder:", file=sys.stderr)
+    print("  python3 -c 'from urllib.parse import quote_plus; print(quote_plus(\"your-password\"))'", file=sys.stderr)
+    sys.exit(1)
+PY
+    local status=$?
+    set -e
+    return "$status"
+}
+
 echo "=========================================="
 echo "ITR Dashboard — Complete Deployment"
 echo "=========================================="
@@ -165,6 +226,11 @@ if [ -z "$MONGO_URL" ]; then
     echo "  ERROR: MONGO_URL cannot be empty."
     exit 1
 fi
+NORMALIZED_MONGO_URL=$(normalize_mongo_url)
+if [ "$NORMALIZED_MONGO_URL" != "$MONGO_URL" ]; then
+    echo "  ✓ URL-encoded MongoDB username/password in MONGO_URL"
+fi
+MONGO_URL="$NORMALIZED_MONGO_URL"
 
 cat > "$BACKEND_ENV" << BACKENDEOF
 # MongoDB Atlas connection
@@ -209,6 +275,8 @@ python3 -m venv venv
 source venv/bin/activate
 pip install --upgrade pip -q
 pip install -r requirements.txt -q
+echo ">>> Validating MongoDB connection string"
+validate_mongo_url
 deactivate
 echo "✓ Backend venv created and dependencies installed"
 
