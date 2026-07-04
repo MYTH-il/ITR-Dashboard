@@ -27,7 +27,6 @@ SSH into your instance and run:
 
 ```bash
 curl -O https://raw.githubusercontent.com/MYTH-il/ITR-Dashboard/main/deploy.sh
-cd ITR_Dashboard/
 chmod +x deploy.sh
 ./deploy.sh
 ```
