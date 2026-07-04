@@ -213,6 +213,27 @@ dig yourdomain.duckdns.org
 **Yarn vs npm**
 This project requires `yarn`, not `npm`. The `package.json` uses yarn's `resolutions` field for dependency pinning, which npm ignores entirely.
 
+**Frontend build exits too early on EC2**
+Small instances such as `t3.micro` can run out of memory while building the
+React frontend. The deployment script creates swap automatically, but if an
+older script already failed, repair the instance and rerun the build:
+
+```bash
+sudo fallocate -l 3G /swapfile || sudo dd if=/dev/zero of=/swapfile bs=1M count=3072 status=progress
+sudo chmod 600 /swapfile
+sudo mkswap -f /swapfile
+sudo swapon /swapfile
+grep -q '^/swapfile ' /etc/fstab || echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab
+
+cd ~/ITR-Dashboard/frontend
+rm -rf node_modules package-lock.json build
+yarn install --frozen-lockfile
+NODE_OPTIONS=--max-old-space-size=768 GENERATE_SOURCEMAP=false CI=false yarn build
+```
+
+The Yarn warning `Workspaces can only be enabled in private projects` is not
+the cause of this failure.
+
 ## Support
 
 For deployment issues, check the logs:
